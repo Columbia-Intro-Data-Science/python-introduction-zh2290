@@ -27,7 +27,7 @@ def get_svd(df_ratings):
     data.split(n_folds=5)
     svd = SVD()
     trainset = data.build_full_trainset()
-    svd.train(trainset)
+    svd.fit(trainset)
     return svd
 
 
@@ -47,6 +47,18 @@ def get_recommendations(title):
     result=titles[restaurant_indices]
     result1=df[df['business_id'].isin(result)]['name'].unique().tolist()
     return result1
+
+def get_recommendation_account(account):
+    svd=get_svd(df_ratings)
+    scores=np.zeros(len(df['business_id'].unique()))
+    for i in range(len(scores)):
+        scores[i]= svd.predict(account,category['business_id'][i]).est
+    result= pd.DataFrame(np.hstack((pd.DataFrame(df['business_id'].unique()),    pd.DataFrame(scores))))
+    result.columns = ['business_id','scores']
+#    result1 = result.sort('scores',ascending=False)
+    result1=df[df['business_id'].isin(result['business_id'])]['name'].unique().tolist()
+    return result1
+
 
 def hybrid(userId, title):
     svd=get_svd(df_ratings)
@@ -104,17 +116,24 @@ def third():
         filter2_name = df[df['business_id'].isin(filter2)]['name'].unique()
         filter3 = set(filter1) | set(filter2)
         filter3_name= set(filter1_name) | set(filter2_name)
+
+
+
         if data['form']['specialInput'] =='' and data['form']['account']=='':
             res = pd.unique(filter3_name)
         elif data['form']['specialInput']=='' and data['form']['account']!='':
-            res = pd.unique(filter3_name)
+            res = get_recommendation_account(data['form']['account'])
+            a=np.where(pd.DataFrame(res).isin(filter3_name))[0]
+            res=np.array(res)[a]
         elif data['form']['specialInput']!='' and data['form']['account']=='':
             res =get_recommendations(data['form']['specialInput'])
+            a=np.where(pd.DataFrame(res).isin(filter3_name))[0]
+            res=np.array(res)[a]
         elif data['form']['specialInput']!='' and data['form']['account']!='':
             res= hybrid(data['form']['account'],data['form']['specialInput'])
-            res1=res[np.where(pd.DataFrame(res).isin(filter3_name))[0][0]]
-
-    return render_template('user_detail.html',city=user_city,food=user_food,option=user_option,restaurant=user_special,e=user_account,recommend=res)#,j=res1,k=filter3_name)
+            a=np.where(pd.DataFrame(res).isin(filter3_name))[0]
+            res=np.array(res)[a]
+    return render_template('user_detail.html',city=user_city,food=user_food,option=user_option,restaurant=user_special,e=user_account,recommend=res)
 
 
 
